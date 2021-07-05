@@ -1,21 +1,30 @@
-﻿using System;
+﻿using NPOI.SS.UserModel;
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Reflection;
+using Newtonsoft.Json;
 
 namespace Crofana.Config
 {
     public abstract class DataContextBase : IDataContext
     {
-
         private Dictionary<Type, IDataSet> m_dataSetMap;
+        private Dictionary<Type, Func<string, object>> m_parserMap;
 
-        public void Load(IDataSourceReader reader)
+        #region
+        public void Load(string path)
         {
-            while (reader.HasNext)
-            {
-                var pair = reader.Read();
-                m_dataSetMap[pair.type] = pair.data;
-            }
+            m_dataSetMap = new Dictionary<Type, IDataSet>();
+            m_parserMap = new Dictionary<Type, Func<string, object>>();
+            RegisterParser(typeof(int), value => int.Parse(value));
+            RegisterParser(typeof(long), value => long.Parse(value));
+            RegisterParser(typeof(float), value => float.Parse(value));
+            RegisterParser(typeof(bool), value => bool.Parse(value));
+            RegisterParser(typeof(string), value => value);
+
+            ReadDataSourcesRecursively(path);
         }
 
         public T GetObject<T>(long id)
@@ -37,6 +46,12 @@ namespace Crofana.Config
         {
             return GetDataSet<T>()?.GetMetadatas();
         }
+
+        public void RegisterParser(Type type, Func<string, object> parser)
+        {
+            m_parserMap[type] = parser;
+        }
+        #endregion
 
         private IDataSet GetDataSet<T>()
         {

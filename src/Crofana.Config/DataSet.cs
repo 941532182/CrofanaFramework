@@ -6,7 +6,7 @@ namespace Crofana.Config
     internal class DataSet : IDataSet
     {
         private EDuplicatedStrategy m_duplicatedStrategy;
-        private Dictionary<long, object> m_objectMap;
+        private Dictionary<long, IConfig> m_objectMap;
         private Dictionary<string, string> m_metadataMap;
 
         public DataSet() : this(EDuplicatedStrategy.ThrowException) { }
@@ -14,9 +14,16 @@ namespace Crofana.Config
         public DataSet(EDuplicatedStrategy duplicatedStrategy)
         {
             m_duplicatedStrategy = duplicatedStrategy;
+            m_objectMap = new Dictionary<long, IConfig>();
+            m_metadataMap = new Dictionary<string, string>();
         }
 
-        public object GetObject(long id)
+        public bool HasObject(long id)
+        {
+            return m_objectMap.ContainsKey(id);
+        }
+
+        public IConfig GetObject(long id)
         {
 #if UNSAFE_QUERY
             return m_objectMap[id];
@@ -25,9 +32,14 @@ namespace Crofana.Config
 #endif
         }
 
-        public ICollection<object> GetObjects()
+        public ICollection<IConfig> GetObjects()
         {
             return m_objectMap.Values.ToList();
+        }
+
+        public bool HasMetadata(string key)
+        {
+            return m_metadataMap.ContainsKey(key);
         }
 
         public string GetMetadata(string key)
@@ -44,7 +56,7 @@ namespace Crofana.Config
             return m_metadataMap.Values.ToList();
         }
 
-        public void AddObject(long id, object obj)
+        public void AddObject(long id, IConfig obj)
         {
             if (m_objectMap.ContainsKey(id))
             {

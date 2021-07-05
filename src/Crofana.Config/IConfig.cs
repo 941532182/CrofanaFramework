@@ -4,9 +4,9 @@ using System.Text;
 
 namespace Crofana.Config
 {
-    public interface IDataSourceReader
+    public interface IConfig
     {
-        bool HasNext { get; }
-        (Type type, IDataSet data) Read();
+        public long Id { get; }
+        public bool IsSetupProperly { get; }
     }
 }
