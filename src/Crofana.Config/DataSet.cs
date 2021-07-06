@@ -3,7 +3,9 @@ using System.Linq;
 
 namespace Crofana.Config
 {
-    internal class DataSet : IDataSet
+    using Abstractions;
+
+    internal class DataSet : IMetadataSet
     {
         private EDuplicatedStrategy m_duplicatedStrategy;
         private Dictionary<long, IConfig> m_objectMap;
@@ -51,9 +53,14 @@ namespace Crofana.Config
 #endif
         }
 
-        public ICollection<string> GetMetadatas()
+        public IDictionary<string, string> GetMetadatas()
         {
-            return m_metadataMap.Values.ToList();
+            var dic = new Dictionary<string, string>();
+            foreach (var pair in m_metadataMap)
+            {
+                dic[pair.Key] = pair.Value;
+            }
+            return dic;
         }
 
         public void AddObject(long id, IConfig obj)

@@ -1,26 +1,52 @@
-﻿using Newtonsoft.Json;
-using NPOI.SS.UserModel;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Text;
+
+using NPOI.SS.UserModel;
+
+using Newtonsoft.Json;
 
 namespace Crofana.Config
 {
-    public class DataContext : DataContextBase
+    using Abstractions;
+
+    public class DataContext : CrofanaDataContextBase
     {
         private const string XLSX_EXTENSION = ".xlsx";
 
         private Assembly m_domainAssembly;
+        private Dictionary<Type, IMetadataSet> m_dataSetMap;
+        private Dictionary<Type, Func<string, object>> m_parserMap;
+        private JsonSerializer m_jsonSerializer;
 
         public DataContext(Assembly domainAssembly)
         {
             m_domainAssembly = domainAssembly;
+            m_dataSetMap = new Dictionary<Type, IMetadataSet>();
+            m_parserMap = new Dictionary<Type, Func<string, object>>();
+            m_jsonSerializer = JsonSerializer.Create(new JsonSerializerSettings()
+            {
+
+            });
         }
 
-        private IDataSet GetOrAddDataSet(Type type)
+        public override void Load(string url)
+        {
+            RegisterParser(typeof(int), value => int.Parse(value));
+            RegisterParser(typeof(long), value => long.Parse(value));
+            RegisterParser(typeof(float), value => float.Parse(value));
+            RegisterParser(typeof(bool), value => bool.Parse(value));
+            RegisterParser(typeof(string), value => value);
+
+            ReadDataSourcesRecursively(url);
+        }
+
+        protected override IDictionary<Type, IMetadataSet> DataSetMap => m_dataSetMap;
+        protected override IDictionary<Type, Func<string, object>> ParserMap => m_parserMap;
+
+        private IMetadataSet GetOrAddDataSet(Type type)
         {
             if (!m_dataSetMap.ContainsKey(type))
             {
@@ -35,7 +61,7 @@ namespace Crofana.Config
             if (!dataSet.HasObject(id))
             {
                 var config = (IConfig)Activator.CreateInstance(type);
-                //config.GetType().GetProperty("Id").SetValue(config, id);
+                //config.GetType().GetProperty("Id").SetValue(config, id); // 此处不设ID，用于判断对象是否有效
                 dataSet.AddObject(id, config);
             }
             return dataSet.GetObject(id);
@@ -46,7 +72,7 @@ namespace Crofana.Config
             var workbook = WorkbookFactory.Create(path);
 
             var dataSheet = workbook.GetSheetAt(0);
-            var metadataSheet = workbook.GetSheetAt(1);
+            var metadataSheet = workbook.NumberOfSheets > 1 ? workbook.GetSheetAt(1) : null;
 
             var typeName = dataSheet.SheetName;
 
@@ -84,6 +110,11 @@ namespace Crofana.Config
 
             var dataSet = GetOrAddDataSet(type);
 
+            if (metadataSheet == null)
+            {
+                return;
+            }
+
             for (int i = 0; i <= metadataSheet.LastRowNum; i++)
             {
                 var row = metadataSheet.GetRow(i);
@@ -97,6 +128,8 @@ namespace Crofana.Config
                     }
                 }
             }
+
+            workbook.Close();
         }
 
         private void ReadDataSourcesRecursively(string path)
@@ -135,11 +168,11 @@ namespace Crofana.Config
             }
             else if (type.IsValueType)
             {
-                return JsonSerializer.CreateDefault().Deserialize(new StringReader(value), type);
+                return m_jsonSerializer.Deserialize(new StringReader(value), type);
             }
             else if (type.IsArray)
             {
-                var values = value.Split(',');
+                var values = value.Split('|');
                 var elementType = type.GetElementType();
                 var array = Array.CreateInstance(elementType, values.Length);
                 var setter = type.GetMethod("SetValue", new Type[] { typeof(object), typeof(long) });
@@ -153,7 +186,7 @@ namespace Crofana.Config
             {
                 if (type.GetGenericTypeDefinition() == typeof(List<>))
                 {
-                    var values = value.Split(',');
+                    var values = value.Split('|');
                     var elementType = type.GenericTypeArguments[0];
                     var list = Activator.CreateInstance(type);
                     var adder = type.GetMethod("Add");
@@ -165,14 +198,14 @@ namespace Crofana.Config
                 }
                 else if (type.GetGenericTypeDefinition() == typeof(Dictionary<,>))
                 {
-                    var values = value.Split(',');
+                    var values = value.Split('|');
                     var keyType = type.GenericTypeArguments[0];
                     var valueType = type.GenericTypeArguments[1];
                     var dic = Activator.CreateInstance(type);
                     var adder = type.GetMethod("Add");
                     for (int i = 0; i < values.Length; i++)
                     {
-                        var pair = values[i].Split(':');
+                        var pair = values[i].Split('=');
                         adder.Invoke(dic, new object[] { ParseValue(keyType, pair[0]), ParseValue(valueType, pair[1]) });
                     }
                     return dic;
