@@ -12,7 +12,7 @@ namespace Crofana.Config
 {
     using Abstractions;
 
-    public class DataContext : CrofanaDataContextBase
+    public class CrofanaDataContext : CrofanaDataContextBase
     {
         private const string XLSX_EXTENSION = ".xlsx";
 
@@ -21,7 +21,7 @@ namespace Crofana.Config
         private Dictionary<Type, Func<string, object>> m_parserMap;
         private JsonSerializer m_jsonSerializer;
 
-        public DataContext(Assembly domainAssembly)
+        public CrofanaDataContext(Assembly domainAssembly)
         {
             m_domainAssembly = domainAssembly;
             m_dataSetMap = new Dictionary<Type, IMetadataSet>();

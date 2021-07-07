@@ -9,45 +9,26 @@ namespace Crofana.Config.Test
     using Newtonsoft.Json;
     using System.IO;
 
-    class Character : IConfig
+    public enum EGender
     {
-        public long Id { get; private set; }
-        public string Name { get; private set; }
-        public Weapon Weapon { get; private set; }
-        public bool IsSetupProperly => Id > 0;
-    }
-
-    class Weapon : IConfig
-    {
-        public long Id { get; private set; }
-        public string Name { get; private set; }
-        public int Price { get; private set; }
-        public int ATK { get; private set; }
-        public Character Owner { get; private set; }
-        public bool IsSetupProperly => Id > 0;
-    }
-
-    struct Vector3
-    {
-        public float x { get; set; }
-        float y { get; set; }
-        float z { get; set; }
-    }
-
-    struct Test : IConfig
-    {
-        public long Id { get; private set; }
-        public bool IsSetupProperly => Id > 0;
-        public Vector3[] Arr { get; private set; }
+        Male,
+        Female,
     }
 
     class Program
     {
         static void Main(string[] args)
         {
-            var v = (Vector3)JsonSerializer.CreateDefault().Deserialize(new StringReader("{\"x\":2}"), typeof(Vector3));
-            DataContext context = new DataContext(typeof(Program).Assembly);
-            context.Load("D:\\a");
+            var dataContext = new CrofanaDataContext(typeof(Program).Assembly);
+            dataContext.Load("D:\\Projects\\C#\\CrofanaFramework\\test\\Crofana.Config.Test\\Configs");
+
+            var wzh = dataContext.GetObject<Character>(1);
+            var vgy = dataContext.GetObject<Character>(2);
+
+            Func<EGender, string> gender2str = gender => gender == EGender.Male ? "男" : "女";
+
+            Console.WriteLine($"{wzh.Name}-{gender2str(wzh.Gender)}-{wzh.Soul.Name}");
+            Console.WriteLine($"{vgy.Name}-{gender2str(vgy.Gender)}-{vgy.Soul.Name}");
         }
     }
 }
